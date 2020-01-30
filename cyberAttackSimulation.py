@@ -2,6 +2,7 @@ from graph_tool.all import *
 from numpy.random import *
 import numpy as np
 from random import sample, gauss
+import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_gtk3cairo import FigureCanvasGTK3Cairo as FigureCanvas
 import sys, os, os.path
@@ -10,9 +11,10 @@ import time, math
 seed()
 
 from gi.repository import Gtk, Gdk, GdkPixbuf, GObject
+plt.switch_backend('cairo')
 
 # parameters:
-time_to_stop = 100
+time_to_stop = 200
 colors = ['-b', '-g', '-r', '-c', '-m', '-y', '-k']
 simulation = 0
 
@@ -26,9 +28,9 @@ def create_plot(xlabel, ylabel, title, data):
         num += 1
         if num >= len(colors):
             num = 0
-    a.set_xlabel(xlabel, labelpad=0)
-    a.set_ylabel(ylabel, labelpad=0)
-    a.set_title(title)
+    a.set_xlabel(xlabel, labelpad=0, fontdict={'fontweight': 'bold'})
+    a.set_ylabel(ylabel, labelpad=0, fontdict={'fontweight': 'bold'})
+    a.set_title(title, {'fontweight': 'bold'})
     a.legend()
     canvas = FigureCanvas(f)
     return a, canvas
@@ -41,6 +43,7 @@ def create_graph(type, size=100,
     g = Graph(directed=False)
     if type == 'price':
         g = price_network(size)
+        g = GraphView(g, directed=False)
     elif type == 'ring':
         g = circular_graph(size)
     elif type == 'star':
@@ -86,10 +89,11 @@ def update_data(figure, xlabel, ylabel, title, data):
         num += 1
         if num >= len(colors):
             num = 0
-    figure.set_xlabel(xlabel, labelpad=0)
-    figure.set_ylabel(ylabel, labelpad=0)
-    figure.set_title(title)
+    figure.set_xlabel(xlabel, labelpad=0, fontdict={'fontweight': 'bold'})
+    figure.set_ylabel(ylabel, labelpad=0, fontdict={'fontweight': 'bold'})
+    figure.set_title(title, {'fontweight': 'bold'})
     figure.legend()
+
 
 r = 0.1  # I->S probability
 s = 0.1  # R->S probability
@@ -98,18 +102,54 @@ incubation = 0.5  # E->I probability
 number_of_infected_at_beginning = 5
 
 graph_list = []
-g = create_graph('random')
+g = create_graph('price')
 graph_list.append(g)
+# graph_list.append(mstg)
+# graph_list.append(create_graph('star'))
+graph_list.append(g.copy())
+
+simulation_list = graph_list.copy()
 mst = min_spanning_tree(g)
 mstg = GraphView(g, efilt=mst, directed=False)
 mstg = Graph(mstg, prune=True)
-graph_list.append(mstg)
-graph_list.append(create_graph('star'))
-graph_list.append(create_graph('cluster'))
+simulation_list.append(mstg)
 
+cover, c = max_cardinality_matching(g)
+coverg = GraphView(g, efilt=cover, directed=False)
+coverg = Graph(coverg, prune=True)
+simulation_list.append(coverg)
 
-model_list = ['SIS', 'SIS', 'SIS', 'SIS']
-label_list = ['Random', 'MST', 'Star', 'Cluster']
+def find_rep(a,list):
+    if list[a] == a:
+        return a
+    else:
+        list[a] = find_rep(list[a],list)
+        return list[a]
+
+connected_coverg = coverg.copy()
+for v in connected_coverg.vertices():
+    flag = False
+    for n in v.all_neighbors():
+        for nn in n.all_neighbors():
+            if not connected_coverg.vertex_index[nn]:
+                flag = True
+    if not flag:
+        connected_coverg.add_edge(connected_coverg.vertex(0),v)
+simulation_list.append(connected_coverg)
+
+cutg = g.copy()
+cut = g.new_vertex_property('bool')
+cut_array = cut.a
+for i in range(len(cut_array)):
+    cut_array[i] = randint(0, 2)
+for e in g.edges():
+    if cut[e.source()] != cut[e.target()]:
+        if len(list(cutg.vertex(g.vertex_index[e.source()]).all_neighbors())) != 1 and len(list(cutg.vertex(g.vertex_index[e.target()]).all_neighbors())) != 1:
+            cutg.remove_edge(e)
+simulation_list.append(cutg)
+
+model_list = ['SIS', 'SIRS', 'SIS', 'SIS', 'SIS', 'SIS']
+label_list = ['SIS', 'SIRS', 'MST', 'Edge Cover', 'Connected Edge Cover', 'Cut']
 
 S = [0, 1, 0, 1]  # Green color
 I = [1, 0, 0, 1]  # Red color
@@ -117,9 +157,9 @@ R = [0, 1, 1, 1]  # Blue color
 E = [1, 0, 1, 1]  # Purple color
 
 state_list = []
-for g in graph_list:
+for g in simulation_list:
     state_list.append(g.new_vertex_property("vector<double>"))
-for i, g in enumerate(graph_list):
+for i, g in enumerate(simulation_list):
     for v in g.vertices():
         state_list[i][v] = S
     vt = list(g.vertices())
@@ -128,14 +168,14 @@ for i, g in enumerate(graph_list):
         state_list[i][s] = I
 
 frequency_list = []
-for g in graph_list:
+for g in simulation_list:
     frequency_list.append([number_of_infected_at_beginning / g.num_vertices()])
 distribution_list = []
-for g in graph_list:
+for g in simulation_list:
     distribution_list.append([0] * (g.num_vertices() + 1))
-num_infected_list = [number_of_infected_at_beginning] * len(graph_list)
+num_infected_list = [number_of_infected_at_beginning] * len(simulation_list)
 newly_infected_list = []
-for g in graph_list:
+for g in simulation_list:
     newly_infected_list.append(g.new_vertex_property("bool"))
 
 time = 1
@@ -151,41 +191,77 @@ class SimulationWindow(Gtk.Window):
 
     def __init__(self):
         Gtk.Window.__init__(self, title='Cyber Attack Simulation')
-        self.vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.box = Gtk.Box()
-        self.box2 = Gtk.Box()
-        self.add(self.vbox)
+        self.hbox = Gtk.Box()
+        self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.box_2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.box_3 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.box2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.box3 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.box4 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.hbox1 = Gtk.Box()
+        self.hbox2 = Gtk.Box()
+        self.add(self.hbox)
         self.graphs = []
+        for i in range(len(graph_list)):
+            label = Gtk.Label(
+                '<span size="xx-large" weight="bold">' + ''.join([s + '\n' for s in model_list[i]]) + '</span>')
+            label.set_use_markup(True)
+            self.box3.pack_start(label, True, True, 0)
+        self.hbox1.add(self.box3)
         for i, g in enumerate(graph_list):
-            self.graphs.append(GraphWidget(g, sfdp_layout(g), edge_color=[0.6, 0.6, 0.6, 1],
-                                     vertex_fill_color=state_list[i],
-                                     vertex_halo=newly_infected_list[i],
-                                     vertex_halo_color=[0.8, 0, 0, 0.6]))
-            f = Gtk.Frame()
-            f.set_label(label_list[i])
-            f.add(self.graphs[i])
-            f.set_label_align(.5, .5)
-            f.set_shadow_type(0)
-            self.box2.pack_start(f, True, True, 0)
+            self.graphs.append(GraphWidget(g, sfdp_layout(g),
+                                           edge_color=[0, 0, 0, 1],
+                                           vertex_fill_color=state_list[i],
+                                           vertex_halo=newly_infected_list[i],
+                                           vertex_halo_color=[0.8, 0, 0, 0.6], vprops={'size': 11}))
+            # f = Gtk.Frame()
+            # f.set_label(label_list[i])
+            # f.add(self.graphs[i])
+            # f.set_label_align(.5, .5)
+            # f.set_shadow_type(0)
+            # self.box2.pack_start(self.graphs[i], True, True, 0)
+            self.box2.pack_start(self.graphs[i], True, True, 0)
 
+        self.hbox1.pack_start(self.box2, True, True, 0)
+
+        for i in range(len(graph_list), len(simulation_list)):
+            label = Gtk.Label('<span size="large" weight="bold">' + label_list[i] + '</span>')
+            label.set_use_markup(True)
+            self.box4.pack_start(label, False, True, 0)
+            graph_draw(simulation_list[i],output=str(i)+'.png', output_size=(200,200))
+            img = Gtk.Image()
+            img.set_from_file(str(i)+'.png')
+            self.box4.pack_start(img, True, True, 0)
         # self.f3 = Figure(figsize=(5, 4))
         # self.a3 = self.f3.add_subplot(111)
         # self.a3.plot(error, '-b')
         # self.canvas3 = FigureCanvas(self.f3)
 
-        self.vbox.pack_start(self.box2, True, True, 0)
+        self.hbox1.pack_start(self.box4, False, True, 0)
 
-        self.a1, self.canvas1 = create_plot('Time', 'Proportion', 'Proportion of infected nodes vs. time',
+        self.hbox.pack_start(self.hbox1, True, True, 0)
+
+        self.a1, self.canvas1 = create_plot('Time', 'Proportion', 'Proportion of Infected Nodes (Time Series)',
                                             zip(frequency_list, label_list))
         self.box.pack_start(self.canvas1, True, True, 0)
 
         self.a2, self.canvas2 = create_plot('Number of infected nodes', 'Frequency',
-                                            'Density of number of infected nodes',
+                                            'Frequency Density (PDF)',
                                             zip([[x / time for x in distribution_list[i]] for i in
                                                  range(len(distribution_list))], label_list))
         self.box.pack_start(self.canvas2, True, True, 0)
 
-        self.vbox.pack_start(self.box, True, True, 0)
+        # self.box_2.pack_start(FigureCanvas(Figure()), True, True, 0)
+        # self.box_2.pack_start(FigureCanvas(Figure()), True, True, 0)
+        #
+        # self.box_3.pack_start(FigureCanvas(Figure()), True, True, 0)
+        # self.box_3.pack_start(FigureCanvas(Figure()), True, True, 0)
+
+        self.hbox2.pack_start(self.box, True, True, 0)
+        # self.hbox2.pack_start(self.box_2, True, True, 0)
+        # self.hbox2.pack_start(self.box_3, True, True, 0)
+
+        self.hbox.pack_start(self.hbox2, True, True, 0)
 
         self.set_default_size(1920, 1080)
 
@@ -195,6 +271,7 @@ if not offscreen:
     win = SimulationWindow()
 else:
     pass
+
 
 # count = 0
 # win = Gtk.OffscreenWindow()
@@ -231,7 +308,7 @@ def update_state():
     global simulation
 
     # visit the nodes in random order
-    for i, g in enumerate(graph_list):
+    for i, g in enumerate(simulation_list):
         newState = state_list[i].copy()
         for v in g.vertices():
             if state_list[i][v] == I:
@@ -285,9 +362,10 @@ def update_state():
         for graph in win.graphs:
             graph.regenerate_surface()
             graph.queue_draw()
-        update_data(win.a1, 'Time', 'Proportion', 'Proportion of infected nodes vs. time', zip(frequency_list, label_list))
+        update_data(win.a1, 'Time', 'Proportion', 'Proportion of Infected Nodes (Time Series)',
+                    zip(frequency_list, label_list))
         update_data(win.a2, 'Number of infected nodes', 'Frequency',
-                    'Density of number of infected nodes',
+                    'Frequency Density (PDF)',
                     zip([[x / time for x in distribution_list[i]] for i in range(len(distribution_list))], label_list))
         # win.a3.plot(error, colors[simulation % colors.__len__()])
         win.canvas1.draw()
@@ -309,38 +387,41 @@ def update_state():
     # than once.
 
     # if time == time_to_stop:
-        # if not simulation:
-        #     # m, n = max_cardinality_matching(g)
-        #     # vs.a = False
-        #     # for e in g.edges():
-        #     #     if m[e]:
-        #     #         vs[e.source()] = vs[e.target()] = True
-        #     m = min_spanning_tree(g)
-        # # newm = m.copy()
-        # # shuffle(elist)
-        # # g.set_edge_filter(m)
-        # # comp, hist = label_components(g)
-        # # rep = comp.a
-        # # for e in elist:
-        # #     if (find_rep(rep, g.vertex_index[e.source()]) != find_rep(rep, g.vertex_index[e.target()])):
-        # #         newm[e] = True
-        # #         rep[g.vertex_index[e.target()]] = g.vertex_index[e.source()]
-        # # g.set_edge_filter(newm)
-        # g.set_edge_filter(m)
-        #
-        # for v in g.vertices():
-        #     state[v] = S
-        # vt = list(g.vertices())
-        # sp = sample(vt, number_of_infected_at_beginning)
-        # for p in sp:
-        #     state[p] = I
-        # error.clear()
-        # distribution = [0] * (size + 1)
-        # num_infected = number_of_infected_at_beginning
-        # frequency = [num_infected / size]
-        # simulation += 1
-        # time = 0
-
+    # if not simulation:
+    #     # m, n = max_cardinality_matching(g)
+    #     # vs.a = False
+    #     # for e in g.edges():
+    #     #     if m[e]:
+    #     #         vs[e.source()] = vs[e.target()] = True
+    #     m = min_spanning_tree(g)
+    # # newm = m.copy()
+    # # shuffle(elist)
+    # # g.set_edge_filter(m)
+    # # comp, hist = label_components(g)
+    # # rep = comp.a
+    # # for e in elist:
+    # #     if (find_rep(rep, g.vertex_index[e.source()]) != find_rep(rep, g.vertex_index[e.target()])):
+    # #         newm[e] = True
+    # #         rep[g.vertex_index[e.target()]] = g.vertex_index[e.source()]
+    # # g.set_edge_filter(newm)
+    # g.set_edge_filter(m)
+    #
+    # for v in g.vertices():
+    #     state[v] = S
+    # vt = list(g.vertices())
+    # sp = sample(vt, number_of_infected_at_beginning)
+    # for p in sp:
+    #     state[p] = I
+    # error.clear()
+    # distribution = [0] * (size + 1)
+    # num_infected = number_of_infected_at_beginning
+    # frequency = [num_infected / size]
+    # simulation += 1
+    # time = 0
+    if time == time_to_stop:
+        for f in frequency_list:
+            print(f)
+        return False
     return True
 
 
