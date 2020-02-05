@@ -7,15 +7,17 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_gtk3cairo import FigureCanvasGTK3Cairo as FigureCanvas
 import sys, os, os.path
 import time, math
+import statsmodels.api as sm
 
 seed()
 
 from gi.repository import Gtk, Gdk, GdkPixbuf, GObject
+
 plt.switch_backend('cairo')
 
 # parameters:
 time_to_stop = 200
-colors = ['-b', '-g', '-r', '-c', '-m', '-y', '-k']
+colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'Orange', 'Tomato','Navy','Plum','Purple']
 simulation = 0
 
 
@@ -31,7 +33,7 @@ def create_plot(xlabel, ylabel, title, data):
     a.set_xlabel(xlabel, labelpad=0, fontdict={'fontweight': 'bold'})
     a.set_ylabel(ylabel, labelpad=0, fontdict={'fontweight': 'bold'})
     a.set_title(title, {'fontweight': 'bold'})
-    a.legend()
+    # a.legend()
     canvas = FigureCanvas(f)
     return a, canvas
 
@@ -92,7 +94,7 @@ def update_data(figure, xlabel, ylabel, title, data):
     figure.set_xlabel(xlabel, labelpad=0, fontdict={'fontweight': 'bold'})
     figure.set_ylabel(ylabel, labelpad=0, fontdict={'fontweight': 'bold'})
     figure.set_title(title, {'fontweight': 'bold'})
-    figure.legend()
+    # figure.legend()
 
 
 r = 0.1  # I->S probability
@@ -102,29 +104,37 @@ incubation = 0.5  # E->I probability
 number_of_infected_at_beginning = 5
 
 graph_list = []
-g = create_graph('price')
+g = create_graph('random')
 graph_list.append(g)
 # graph_list.append(mstg)
 # graph_list.append(create_graph('star'))
 graph_list.append(g.copy())
+
+layout_list = []
+for graph in graph_list:
+    layout_list.append(sfdp_layout(graph))
 
 simulation_list = graph_list.copy()
 mst = min_spanning_tree(g)
 mstg = GraphView(g, efilt=mst, directed=False)
 mstg = Graph(mstg, prune=True)
 simulation_list.append(mstg)
+simulation_list.append(mstg.copy())
 
 cover, c = max_cardinality_matching(g)
 coverg = GraphView(g, efilt=cover, directed=False)
 coverg = Graph(coverg, prune=True)
 simulation_list.append(coverg)
+simulation_list.append(coverg.copy())
 
-def find_rep(a,list):
+
+def find_rep(a, list):
     if list[a] == a:
         return a
     else:
-        list[a] = find_rep(list[a],list)
+        list[a] = find_rep(list[a], list)
         return list[a]
+
 
 connected_coverg = coverg.copy()
 for v in connected_coverg.vertices():
@@ -134,8 +144,9 @@ for v in connected_coverg.vertices():
             if not connected_coverg.vertex_index[nn]:
                 flag = True
     if not flag:
-        connected_coverg.add_edge(connected_coverg.vertex(0),v)
+        connected_coverg.add_edge(connected_coverg.vertex(0), v)
 simulation_list.append(connected_coverg)
+simulation_list.append(connected_coverg.copy())
 
 cutg = g.copy()
 cut = g.new_vertex_property('bool')
@@ -144,12 +155,14 @@ for i in range(len(cut_array)):
     cut_array[i] = randint(0, 2)
 for e in g.edges():
     if cut[e.source()] != cut[e.target()]:
-        if len(list(cutg.vertex(g.vertex_index[e.source()]).all_neighbors())) != 1 and len(list(cutg.vertex(g.vertex_index[e.target()]).all_neighbors())) != 1:
+        if len(list(cutg.vertex(g.vertex_index[e.source()]).all_neighbors())) != 1 and len(
+                list(cutg.vertex(g.vertex_index[e.target()]).all_neighbors())) != 1:
             cutg.remove_edge(e)
 simulation_list.append(cutg)
+simulation_list.append(cutg.copy())
 
-model_list = ['SIS', 'SIRS', 'SIS', 'SIS', 'SIS', 'SIS']
-label_list = ['SIS', 'SIRS', 'MST', 'Edge Cover', 'Connected Edge Cover', 'Cut']
+model_list = ['SIS', 'SIRS', 'SIS', 'SIS', 'SIS', 'SIRS', 'SIRS', 'SIRS', 'SIRS', 'SIRS']
+label_list = ['SIS', 'SIRS', 'MST', 'Edge Cover', 'Connected Edge Cover', 'Exact Cover', 'MST', 'Edge Cover', 'Connected Edge Cover', 'Exact Cover']
 
 S = [0, 1, 0, 1]  # Green color
 I = [1, 0, 0, 1]  # Red color
@@ -177,6 +190,13 @@ num_infected_list = [number_of_infected_at_beginning] * len(simulation_list)
 newly_infected_list = []
 for g in simulation_list:
     newly_infected_list.append(g.new_vertex_property("bool"))
+edge_state_list = []
+for g in graph_list:
+    eprop = g.new_edge_property('vector<double>')
+    for e in g.edges():
+        eprop[e] = [0.8, 0.8, 0.8, 1]
+    edge_state_list.append(eprop)
+log_list = [[] for i in range(len(simulation_list))]
 
 time = 1
 
@@ -191,55 +211,28 @@ class SimulationWindow(Gtk.Window):
 
     def __init__(self):
         Gtk.Window.__init__(self, title='Cyber Attack Simulation')
-        self.hbox = Gtk.Box()
+        self.big_box = Gtk.Box()
         self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.box_2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.box_3 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.box2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.box3 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.box4 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.hbox1 = Gtk.Box()
-        self.hbox2 = Gtk.Box()
-        self.add(self.hbox)
+        self.legend_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.graph_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.add(self.big_box)
         self.graphs = []
-        for i in range(len(graph_list)):
-            label = Gtk.Label(
-                '<span size="xx-large" weight="bold">' + ''.join([s + '\n' for s in model_list[i]]) + '</span>')
-            label.set_use_markup(True)
-            self.box3.pack_start(label, True, True, 0)
-        self.hbox1.add(self.box3)
+
         for i, g in enumerate(graph_list):
-            self.graphs.append(GraphWidget(g, sfdp_layout(g),
-                                           edge_color=[0, 0, 0, 1],
-                                           vertex_fill_color=state_list[i],
-                                           vertex_halo=newly_infected_list[i],
-                                           vertex_halo_color=[0.8, 0, 0, 0.6], vprops={'size': 11}))
-            # f = Gtk.Frame()
-            # f.set_label(label_list[i])
-            # f.add(self.graphs[i])
-            # f.set_label_align(.5, .5)
-            # f.set_shadow_type(0)
-            # self.box2.pack_start(self.graphs[i], True, True, 0)
-            self.box2.pack_start(self.graphs[i], True, True, 0)
-
-        self.hbox1.pack_start(self.box2, True, True, 0)
-
-        for i in range(len(graph_list), len(simulation_list)):
-            label = Gtk.Label('<span size="large" weight="bold">' + label_list[i] + '</span>')
+            label = Gtk.Label(
+                '<span size="xx-large" weight="bold">' + model_list[i] + '</span>')
             label.set_use_markup(True)
-            self.box4.pack_start(label, False, True, 0)
-            graph_draw(simulation_list[i],output=str(i)+'.png', output_size=(200,200))
+            self.graph_box.pack_start(label, True, True, 0)
+            graph_draw(g, pos=layout_list[i], vprops={'fill_color': state_list[i]},
+                       eprops={'color': edge_state_list[i]}, output=str(i) + '.png',
+                       output_size=(400, 400))
             img = Gtk.Image()
-            img.set_from_file(str(i)+'.png')
-            self.box4.pack_start(img, True, True, 0)
-        # self.f3 = Figure(figsize=(5, 4))
-        # self.a3 = self.f3.add_subplot(111)
-        # self.a3.plot(error, '-b')
-        # self.canvas3 = FigureCanvas(self.f3)
+            img.set_from_file(str(i) + '.png')
+            self.graphs.append(img)
+            self.graph_box.pack_start(self.graphs[i], True, True, 0)
 
-        self.hbox1.pack_start(self.box4, False, True, 0)
-
-        self.hbox.pack_start(self.hbox1, True, True, 0)
+        self.big_box.pack_start(self.graph_box, False, False, 0)
 
         self.a1, self.canvas1 = create_plot('Time', 'Proportion', 'Proportion of Infected Nodes (Time Series)',
                                             zip(frequency_list, label_list))
@@ -251,17 +244,20 @@ class SimulationWindow(Gtk.Window):
                                                  range(len(distribution_list))], label_list))
         self.box.pack_start(self.canvas2, True, True, 0)
 
-        # self.box_2.pack_start(FigureCanvas(Figure()), True, True, 0)
-        # self.box_2.pack_start(FigureCanvas(Figure()), True, True, 0)
-        #
-        # self.box_3.pack_start(FigureCanvas(Figure()), True, True, 0)
-        # self.box_3.pack_start(FigureCanvas(Figure()), True, True, 0)
+        self.a3, self.canvas3 = create_plot('Time', 'Log-Return', 'Log-Return', zip(log_list, label_list))
+        self.box.pack_start(self.canvas3, True, True, 0)
 
-        self.hbox2.pack_start(self.box, True, True, 0)
-        # self.hbox2.pack_start(self.box_2, True, True, 0)
-        # self.hbox2.pack_start(self.box_3, True, True, 0)
+        self.a4, self.canvas4 = create_plot('', '', 'ACF of log-return squared', [])
+        self.box_2.pack_start(self.canvas4, True, True, 0)
 
-        self.hbox.pack_start(self.hbox2, True, True, 0)
+        self.a5, self.canvas5 = create_plot('', '', 'Q-Q plot of PDF vs. normal distribution', [])
+        self.box_2.pack_start(self.canvas5, True, True, 0)
+
+        self.a6, self.canvas6 = create_plot('','','Q-Q plot of log-return vs. normal distribution',[])
+        self.box_2.pack_start(self.canvas6, True, True, 0)
+
+        self.big_box.pack_start(self.box, True, True, 0)
+        self.big_box.pack_start(self.box_2, True, True, 0)
 
         self.set_default_size(1920, 1080)
 
@@ -339,11 +335,17 @@ def update_state():
                 if model_list[i] == 'SIRS':
                     if random() < s:
                         newState[v] = S
-
+        if i < len(graph_list):
+            for e in g.edges():
+                if (newState[e.source()] == I and state_list[i][e.target()] == I) or (
+                        newState[e.target()] == I and state_list[i][e.source()] == I):
+                    edge_state_list[i][e] = [0.4, 0.4, 0.4, 1]
+                else:
+                    edge_state_list[i][e] = [0.8, 0.8, 0.8, 1]
         state_list[i].swap(newState)
         frequency_list[i].append(num_infected_list[i] / g.num_vertices())
+        log_list[i].append(math.log1p(frequency_list[i][-1]) - math.log1p(frequency_list[i][-2]))
         distribution_list[i][num_infected_list[i]] += 1
-        # error.append(math.log1p(frequency[-1]) - math.log1p(frequency[-2]))
     time += 1
     # Filter out the recovered vertices
     # g.set_vertex_filter(removed, inverted=True)
@@ -359,18 +361,38 @@ def update_state():
     # canvas1.draw()
     # canvas2.draw()
     else:
-        for graph in win.graphs:
-            graph.regenerate_surface()
-            graph.queue_draw()
+        for i, graph in enumerate(win.graphs):
+            graph_draw(graph_list[i], pos=layout_list[i], vprops={'fill_color': state_list[i]},
+                       eprops={'color': edge_state_list[i]}, output=str(i) + '.png',
+                       output_size=(400, 400))
+            graph.set_from_file(str(i) + '.png')
         update_data(win.a1, 'Time', 'Proportion', 'Proportion of Infected Nodes (Time Series)',
                     zip(frequency_list, label_list))
         update_data(win.a2, 'Number of infected nodes', 'Frequency',
                     'Frequency Density (PDF)',
                     zip([[x / time for x in distribution_list[i]] for i in range(len(distribution_list))], label_list))
-        # win.a3.plot(error, colors[simulation % colors.__len__()])
+        update_data(win.a3, 'Time', 'Log-Return', 'Log-Return', zip(log_list, label_list))
+        if time > 2:
+            win.a4.clear()
+            for i in range(len(log_list)):
+                sm.graphics.tsa.plot_acf((np.array(log_list[i]) ** 2), win.a4, c=colors[i],markersize=4)
+            win.a4.set_title('ACF of log-return squared', {'fontweight': 'bold'})
+
+            win.a5.clear()
+            for i in range(len(distribution_list)):
+                sm.qqplot(np.array(distribution_list[i]),line='s',ax=win.a5,c=colors[i], markersize=4)
+            win.a5.set_title('Q-Q plot of PDF vs. normal distribution', {'fontweight': 'bold'})
+
+            win.a6.clear()
+            for i in range(len(log_list)):
+                sm.qqplot(np.array(log_list[i]), line='s', ax=win.a6, c=colors[i], markersize=4)
+            win.a6.set_title('Q-Q plot of log-return vs. normal distribution', {'fontweight': 'bold'})
         win.canvas1.draw()
         win.canvas2.draw()
-        # win.canvas3.draw()
+        win.canvas3.draw()
+        win.canvas4.draw()
+        win.canvas5.draw()
+        win.canvas6.draw()
 
     # if doing an offscreen animation, dump frame to disk
     if offscreen:
