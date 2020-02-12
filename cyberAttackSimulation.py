@@ -8,6 +8,7 @@ from matplotlib.backends.backend_gtk3cairo import FigureCanvasGTK3Cairo as Figur
 import sys, os, os.path
 import time, math
 import statsmodels.api as sm
+from arch import arch_model
 
 seed()
 
@@ -17,25 +18,46 @@ plt.switch_backend('cairo')
 
 # parameters:
 time_to_stop = 200
-colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'Orange', 'Tomato','Navy','Plum','Purple']
+graph_to_show = 'random'
+colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'Orange', 'Tomato', 'Navy', 'Plum', 'Purple']
 simulation = 0
 
 
+def create_qq_plot():
+    f = Figure()
+    a = f.add_subplot(221)
+    b = f.add_subplot(222)
+    c = f.add_subplot(223)
+    d = f.add_subplot(224)
+    f.subplots_adjust(hspace=0.4)
+    f.suptitle('QQ plots of PDF & log-return vs. normal distribution', fontweight='bold')
+    canvas = FigureCanvas(f)
+    return a, b, c, d, canvas
+
 def create_plot(xlabel, ylabel, title, data):
-    f = Figure(figsize=(5, 4))
-    a = f.add_subplot(111)
+    f = Figure()
+    a = f.add_subplot(211)
     num = 0
-    for d, l in data:
-        a.plot(d, colors[num], label=l)
+    for d in data[0::2]:
+        a.plot(d, colors[num])
         num += 1
         if num >= len(colors):
             num = 0
     a.set_xlabel(xlabel, labelpad=0, fontdict={'fontweight': 'bold'})
     a.set_ylabel(ylabel, labelpad=0, fontdict={'fontweight': 'bold'})
-    a.set_title(title, {'fontweight': 'bold'})
     # a.legend()
+    b = f.add_subplot(212)
+    num = 0
+    for d in data[1::2]:
+        b.plot(d, colors[num])
+        num += 1
+        if num >= len(colors):
+            num = 0
+    b.set_xlabel(xlabel, labelpad=0, fontdict={'fontweight': 'bold'})
+    b.set_ylabel(ylabel, labelpad=0, fontdict={'fontweight': 'bold'})
+    if (title == 'Prediction'): f.subplots_adjust(hspace=0.6)
     canvas = FigureCanvas(f)
-    return a, canvas
+    return a, b, canvas
 
 
 def create_graph(type, size=100,
@@ -86,15 +108,19 @@ def create_graph(type, size=100,
 def update_data(figure, xlabel, ylabel, title, data):
     figure.clear()
     num = 0
-    for d, l in data:
-        figure.plot(d, colors[num], label=l)
+    for d in data:
+        if title == 'Prediction':
+            figure.hist(d, cumulative=True, color=colors[num], histtype='bar', rwidth=0.1)
+
+        else:
+            figure.plot(d, colors[num])
         num += 1
         if num >= len(colors):
             num = 0
     figure.set_xlabel(xlabel, labelpad=0, fontdict={'fontweight': 'bold'})
     figure.set_ylabel(ylabel, labelpad=0, fontdict={'fontweight': 'bold'})
     figure.set_title(title, {'fontweight': 'bold'})
-    # figure.legend()
+    figure.grid()
 
 
 r = 0.1  # I->S probability
@@ -104,7 +130,7 @@ incubation = 0.5  # E->I probability
 number_of_infected_at_beginning = 5
 
 graph_list = []
-g = create_graph('random')
+g = create_graph(graph_to_show)
 graph_list.append(g)
 # graph_list.append(mstg)
 # graph_list.append(create_graph('star'))
@@ -161,8 +187,9 @@ for e in g.edges():
 simulation_list.append(cutg)
 simulation_list.append(cutg.copy())
 
-model_list = ['SIS', 'SIRS', 'SIS', 'SIS', 'SIS', 'SIRS', 'SIRS', 'SIRS', 'SIRS', 'SIRS']
-label_list = ['SIS', 'SIRS', 'MST', 'Edge Cover', 'Connected Edge Cover', 'Exact Cover', 'MST', 'Edge Cover', 'Connected Edge Cover', 'Exact Cover']
+model_list = ['SIS', 'SIRS', 'SIS', 'SIRS', 'SIS', 'SIRS', 'SIS', 'SIRS', 'SIS', 'SIRS']
+label_list = ['SIS', 'SIRS', 'MST', 'Edge Cover', 'Connected Edge Cover', 'Exact Cover', 'MST', 'Edge Cover',
+              'Connected Edge Cover', 'Exact Cover']
 
 S = [0, 1, 0, 1]  # Green color
 I = [1, 0, 0, 1]  # Red color
@@ -197,6 +224,7 @@ for g in graph_list:
         eprop[e] = [0.8, 0.8, 0.8, 1]
     edge_state_list.append(eprop)
 log_list = [[] for i in range(len(simulation_list))]
+error_list = [[] for i in range(len(simulation_list))]
 
 time = 1
 
@@ -224,7 +252,8 @@ class SimulationWindow(Gtk.Window):
                 '<span size="xx-large" weight="bold">' + model_list[i] + '</span>')
             label.set_use_markup(True)
             self.graph_box.pack_start(label, True, True, 0)
-            graph_draw(g, pos=layout_list[i], vprops={'fill_color': state_list[i]},
+            graph_draw(g, pos=layout_list[i],
+                       vprops={'fill_color': state_list[i], 'halo': newly_infected_list[i], 'halo_color': [1, 0, 1, 1]},
                        eprops={'color': edge_state_list[i]}, output=str(i) + '.png',
                        output_size=(400, 400))
             img = Gtk.Image()
@@ -232,28 +261,32 @@ class SimulationWindow(Gtk.Window):
             self.graphs.append(img)
             self.graph_box.pack_start(self.graphs[i], True, True, 0)
 
+        img = Gtk.Image()
+        img.set_from_file('legend.png')
+        self.graph_box.pack_start(img, True, True, 0)
+
         self.big_box.pack_start(self.graph_box, False, False, 0)
 
-        self.a1, self.canvas1 = create_plot('Time', 'Proportion', 'Proportion of Infected Nodes (Time Series)',
-                                            zip(frequency_list, label_list))
+        self.a11, self.a12, self.canvas1 = create_plot('', '', '',
+                                                       frequency_list)
         self.box.pack_start(self.canvas1, True, True, 0)
 
-        self.a2, self.canvas2 = create_plot('Number of infected nodes', 'Frequency',
-                                            'Frequency Density (PDF)',
-                                            zip([[x / time for x in distribution_list[i]] for i in
-                                                 range(len(distribution_list))], label_list))
+        self.a21, self.a22, self.canvas2 = create_plot('Number of infected nodes', 'Frequency',
+                                                       'Frequency Density (PDF)',
+                                                       [[x / time for x in distribution_list[i]] for i in
+                                                        range(len(distribution_list))])
         self.box.pack_start(self.canvas2, True, True, 0)
 
-        self.a3, self.canvas3 = create_plot('Time', 'Log-Return', 'Log-Return', zip(log_list, label_list))
+        self.a31, self.a32, self.canvas3 = create_plot('', '', '', [])
         self.box.pack_start(self.canvas3, True, True, 0)
 
-        self.a4, self.canvas4 = create_plot('', '', 'ACF of log-return squared', [])
+        self.a41, self.a42, self.canvas4 = create_plot('', '', 'Prediction', log_list)
         self.box_2.pack_start(self.canvas4, True, True, 0)
 
-        self.a5, self.canvas5 = create_plot('', '', 'Q-Q plot of PDF vs. normal distribution', [])
+        self.a51, self.a52, self.canvas5 = create_plot('', '', 'Prediction', [])
         self.box_2.pack_start(self.canvas5, True, True, 0)
 
-        self.a6, self.canvas6 = create_plot('','','Q-Q plot of log-return vs. normal distribution',[])
+        self.a61, self.a62, self.a63, self.a64, self.canvas6 = create_qq_plot()
         self.box_2.pack_start(self.canvas6, True, True, 0)
 
         self.big_box.pack_start(self.box, True, True, 0)
@@ -305,6 +338,9 @@ def update_state():
 
     # visit the nodes in random order
     for i, g in enumerate(simulation_list):
+        if i < len(graph_list):
+            for e in g.edges():
+                edge_state_list[i][e] = [0.8, 0.8, 0.8, 1]
         newState = state_list[i].copy()
         for v in g.vertices():
             if state_list[i][v] == I:
@@ -331,17 +367,13 @@ def update_state():
                         newState[v] = I
                     newly_infected_list[i][v] = True
                     num_infected_list[i] += 1
+                    if i < len(graph_list):
+                        for e in v.all_edges():
+                            edge_state_list[i][e] = [1, 165 / 255, 0, 1]
             elif state_list[i][v] == R:
                 if model_list[i] == 'SIRS':
                     if random() < s:
                         newState[v] = S
-        if i < len(graph_list):
-            for e in g.edges():
-                if (newState[e.source()] == I and state_list[i][e.target()] == I) or (
-                        newState[e.target()] == I and state_list[i][e.source()] == I):
-                    edge_state_list[i][e] = [0.4, 0.4, 0.4, 1]
-                else:
-                    edge_state_list[i][e] = [0.8, 0.8, 0.8, 1]
         state_list[i].swap(newState)
         frequency_list[i].append(num_infected_list[i] / g.num_vertices())
         log_list[i].append(math.log1p(frequency_list[i][-1]) - math.log1p(frequency_list[i][-2]))
@@ -362,31 +394,87 @@ def update_state():
     # canvas2.draw()
     else:
         for i, graph in enumerate(win.graphs):
-            graph_draw(graph_list[i], pos=layout_list[i], vprops={'fill_color': state_list[i]},
+            graph_draw(graph_list[i], pos=layout_list[i],
+                       vprops={'fill_color': state_list[i], 'halo': newly_infected_list[i], 'halo_color': [1, 0, 1, 1]},
                        eprops={'color': edge_state_list[i]}, output=str(i) + '.png',
                        output_size=(400, 400))
             graph.set_from_file(str(i) + '.png')
-        update_data(win.a1, 'Time', 'Proportion', 'Proportion of Infected Nodes (Time Series)',
-                    zip(frequency_list, label_list))
-        update_data(win.a2, 'Number of infected nodes', 'Frequency',
-                    'Frequency Density (PDF)',
-                    zip([[x / time for x in distribution_list[i]] for i in range(len(distribution_list))], label_list))
-        update_data(win.a3, 'Time', 'Log-Return', 'Log-Return', zip(log_list, label_list))
+        update_data(win.a11, '', 'Percentage(SIS)', 'Percentage of Infected Nodes (Time Series)',
+                    frequency_list[0::2])
+        update_data(win.a12, 'Time', 'Percentage(SIRS)', '',
+                    frequency_list[1::2])
+        update_data(win.a21, '', 'Frequency(SIS)',
+                    'Frequency Density (PDF) ',
+                    [[x / time for x in distribution_list[i]] for i in range(len(distribution_list)) if i % 2 == 0])
+        update_data(win.a22, 'Percentage of infected nodes', 'Frequency(SIRS)',
+                    '',
+                    [[x / time for x in distribution_list[i]] for i in
+                     range(len(distribution_list)) if i % 2 != 0])
+        for i in range(len(frequency_list)):
+            if i % 2 == 0:
+                win.a21.axvline((100 * np.array(frequency_list[i])).mean(), color=colors[int(i / 2)])
+                win.a21.axvline(np.median(100 * np.array(frequency_list[i])), color=colors[int(i / 2)])
+            else:
+                win.a22.axvline((100 * np.array(frequency_list[i])).mean(), color=colors[int((i - 1) / 2)])
+                win.a22.axvline(np.median(100 * np.array(frequency_list[i])), color=colors[int((i - 1) / 2)])
+        update_data(win.a41, 'time', 'Log-Return', 'Log-Return & Prediction of SIS', log_list[0::2])
+        update_data(win.a51, 'time', 'Log-Return', 'Log-Return & Prediction of SIRS', log_list[1::2])
+
         if time > 2:
-            win.a4.clear()
-            for i in range(len(log_list)):
-                sm.graphics.tsa.plot_acf((np.array(log_list[i]) ** 2), win.a4, c=colors[i],markersize=4)
-            win.a4.set_title('ACF of log-return squared', {'fontweight': 'bold'})
+            win.a31.clear()
+            for i, log in enumerate(log_list[0::2]):
+                sm.graphics.tsa.plot_acf((np.array(log) ** 2), win.a31, c=colors[i], markersize=4)
+            win.a31.set_title('ACF of log-return squared', {'fontweight': 'bold'})
+            win.a31.set_ylabel('(SIS)', {'fontweight': 'bold'})
+            win.a31.grid()
 
-            win.a5.clear()
-            for i in range(len(distribution_list)):
-                sm.qqplot(np.array(distribution_list[i]),line='s',ax=win.a5,c=colors[i], markersize=4)
-            win.a5.set_title('Q-Q plot of PDF vs. normal distribution', {'fontweight': 'bold'})
+            win.a32.clear()
+            for i, log in enumerate(log_list[1::2]):
+                sm.graphics.tsa.plot_acf((np.array(log) ** 2), win.a32, c=colors[i], markersize=4)
+            win.a32.set_title('')
+            win.a32.set_ylabel('(SIRS)', {'fontweight': 'bold'})
+            win.a32.grid()
+            win.a61.clear()
+            for i,d in enumerate(distribution_list[0::2]):
+                sm.qqplot(np.array(d), line='45', ax=win.a61, c=colors[i], markersize=4)
+            win.a61.set_title('PDF (SIS)', {'fontweight': 'bold'})
+            win.a61.set_xlabel('')
+            win.a61.set_ylabel('')
+            win.a61.grid()
 
-            win.a6.clear()
-            for i in range(len(log_list)):
-                sm.qqplot(np.array(log_list[i]), line='s', ax=win.a6, c=colors[i], markersize=4)
-            win.a6.set_title('Q-Q plot of log-return vs. normal distribution', {'fontweight': 'bold'})
+            win.a62.clear()
+            for i, d in enumerate(distribution_list[1::2]):
+                sm.qqplot(np.array(d), line='45', ax=win.a62, c=colors[i], markersize=4)
+            win.a62.set_title('PDF (SIRS)', {'fontweight': 'bold'})
+            win.a62.set_xlabel('')
+            win.a62.set_ylabel('')
+            win.a62.grid()
+
+            win.a63.clear()
+            for i,l in enumerate(log_list[0::2]):
+                sm.qqplot(np.array(l), line='45', ax=win.a63, c=colors[i], markersize=4)
+            win.a63.set_title('log-return (SIS)', {'fontweight': 'bold'})
+            win.a63.set_ylabel('')
+            win.a63.set_xlabel('')
+            win.a63.grid()
+
+            win.a64.clear()
+            for i, l in enumerate(log_list[1::2]):
+                sm.qqplot(np.array(l), line='45', ax=win.a64, c=colors[i], markersize=4)
+            win.a64.set_title('log-return (SIRS)', {'fontweight': 'bold'})
+            win.a64.set_ylabel('')
+            win.a64.set_xlabel('')
+            win.a64.grid()
+
+            for i, log in enumerate(log_list):
+                if log[-1]:
+                    print('################'+str(time)+'######################')
+                    prediction = arch_model(100*(np.array(log[:-1]))).fit().forecast(horizon=5).mean.at[time-3,'h.1']
+                    error_list[i].append(abs((prediction/100 - log[-1]) / log[-1]))
+
+            update_data(win.a42, 'error', 'frequency', 'Prediction', error_list[0::2])
+            update_data(win.a52, 'error', 'frequency', 'Prediction', error_list[1::2])
+
         win.canvas1.draw()
         win.canvas2.draw()
         win.canvas3.draw()
@@ -441,8 +529,6 @@ def update_state():
     # simulation += 1
     # time = 0
     if time == time_to_stop:
-        for f in frequency_list:
-            print(f)
         return False
     return True
 
