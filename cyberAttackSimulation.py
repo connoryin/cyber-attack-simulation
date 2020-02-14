@@ -29,14 +29,72 @@ def create_qq_plot():
     b = f.add_subplot(222)
     c = f.add_subplot(223)
     d = f.add_subplot(224)
+
+    a.set_facecolor('0')
+    a.spines['bottom'].set_color('1')
+    a.spines['top'].set_color('1')
+    a.spines['right'].set_color('1')
+    a.spines['left'].set_color('1')
+    a.tick_params(axis='x', colors='1')
+    a.tick_params(axis='y', colors='1')
+    a.yaxis.label.set_color('1')
+    a.xaxis.label.set_color('1')
+    a.title.set_color('1')
+
+    b.set_facecolor('0')
+    b.spines['bottom'].set_color('1')
+    b.spines['top'].set_color('1')
+    b.spines['right'].set_color('1')
+    b.spines['left'].set_color('1')
+    b.tick_params(axis='x', colors='1')
+    b.tick_params(axis='y', colors='1')
+    b.yaxis.label.set_color('1')
+    b.xaxis.label.set_color('1')
+    b.title.set_color('1')
+
+    c.set_facecolor('0')
+    c.spines['bottom'].set_color('1')
+    c.spines['top'].set_color('1')
+    c.spines['right'].set_color('1')
+    c.spines['left'].set_color('1')
+    c.tick_params(axis='x', colors='1')
+    c.tick_params(axis='y', colors='1')
+    c.yaxis.label.set_color('1')
+    c.xaxis.label.set_color('1')
+    c.title.set_color('1')
+
+    d.set_facecolor('0')
+    d.spines['bottom'].set_color('1')
+    d.spines['top'].set_color('1')
+    d.spines['right'].set_color('1')
+    d.spines['left'].set_color('1')
+    d.tick_params(axis='x', colors='1')
+    d.tick_params(axis='y', colors='1')
+    d.yaxis.label.set_color('1')
+    d.xaxis.label.set_color('1')
+    d.title.set_color('1')
+
     f.subplots_adjust(hspace=0.4)
-    f.suptitle('QQ plots of PDF & log-return vs. normal distribution', fontweight='bold')
+    f.suptitle('QQ plots of PDF & log-difference vs. normal distribution', fontweight='bold',fontdict={ 'color':'1'})
+    f.set_facecolor('0')
+
     canvas = FigureCanvas(f)
     return a, b, c, d, canvas
 
 def create_plot(xlabel, ylabel, title, data):
     f = Figure()
+    f.set_facecolor('0')
     a = f.add_subplot(211)
+    a.set_facecolor('0')
+    a.spines['bottom'].set_color('1')
+    a.spines['top'].set_color('1')
+    a.spines['right'].set_color('1')
+    a.spines['left'].set_color('1')
+    a.tick_params(axis='x', colors='1')
+    a.tick_params(axis='y', colors='1')
+    a.yaxis.label.set_color('1')
+    a.xaxis.label.set_color('1')
+    a.title.set_color('1')
     num = 0
     for d in data[0::2]:
         a.plot(d, colors[num])
@@ -47,6 +105,16 @@ def create_plot(xlabel, ylabel, title, data):
     a.set_ylabel(ylabel, labelpad=0, fontdict={'fontweight': 'bold'})
     # a.legend()
     b = f.add_subplot(212)
+    b.set_facecolor('0')
+    b.spines['bottom'].set_color('1')
+    b.spines['top'].set_color('1')
+    b.spines['right'].set_color('1')
+    b.spines['left'].set_color('1')
+    b.tick_params(axis='x', colors='1')
+    b.tick_params(axis='y', colors='1')
+    b.yaxis.label.set_color('1')
+    b.xaxis.label.set_color('1')
+    b.title.set_color('1')
     num = 0
     for d in data[1::2]:
         b.plot(d, colors[num])
@@ -55,7 +123,7 @@ def create_plot(xlabel, ylabel, title, data):
             num = 0
     b.set_xlabel(xlabel, labelpad=0, fontdict={'fontweight': 'bold'})
     b.set_ylabel(ylabel, labelpad=0, fontdict={'fontweight': 'bold'})
-    if (title == 'Prediction'): f.subplots_adjust(hspace=0.6)
+    if (title == 'Prediction of percentage of infected nodes'): f.subplots_adjust(hspace=0.6)
     canvas = FigureCanvas(f)
     return a, b, canvas
 
@@ -109,8 +177,8 @@ def update_data(figure, xlabel, ylabel, title, data):
     figure.clear()
     num = 0
     for d in data:
-        if title == 'Prediction':
-            figure.hist(d, cumulative=True, color=colors[num], histtype='bar', rwidth=0.1)
+        if title == 'Prediction of percentage of infected nodes':
+            figure.hist(d, cumulative=True, color=colors[num], histtype='bar', rwidth=0.5)
 
         else:
             figure.plot(d, colors[num])
@@ -119,7 +187,7 @@ def update_data(figure, xlabel, ylabel, title, data):
             num = 0
     figure.set_xlabel(xlabel, labelpad=0, fontdict={'fontweight': 'bold'})
     figure.set_ylabel(ylabel, labelpad=0, fontdict={'fontweight': 'bold'})
-    figure.set_title(title, {'fontweight': 'bold'})
+    figure.set_title(title, {'fontweight': 'bold', 'color':'1'})
     figure.grid()
 
 
@@ -228,6 +296,12 @@ error_list = [[] for i in range(len(simulation_list))]
 
 time = 1
 
+# for i,graph in enumerate(simulation_list):
+#     graph_draw(graph,
+#                vprops={'fill_color': state_list[i]},
+#                eprops={'color':[.4,.4,.4,.4]}, output=str(i) + 'a.png',
+#                output_size=(400, 400))
+
 # If True, the frames will be dumped to disk as images.
 offscreen = sys.argv[1] == "offscreen" if len(sys.argv) > 1 else False
 max_count = 20
@@ -245,6 +319,7 @@ class SimulationWindow(Gtk.Window):
         self.legend_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.graph_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(self.big_box)
+        self.modify_bg(0,Gdk.Color(1,1,1))
         self.graphs = []
 
         for i, g in enumerate(graph_list):
@@ -269,25 +344,37 @@ class SimulationWindow(Gtk.Window):
 
         self.a11, self.a12, self.canvas1 = create_plot('', '', '',
                                                        frequency_list)
-        self.box.pack_start(self.canvas1, True, True, 0)
+        frame1=Gtk.Frame()
+        frame1.add(self.canvas1)
+        self.box.pack_start(frame1, True, True, 0)
 
         self.a21, self.a22, self.canvas2 = create_plot('Number of infected nodes', 'Frequency',
-                                                       'Frequency Density (PDF)',
+                                                       'Frequency Density (PDF) of percentage of infected nodes',
                                                        [[x / time for x in distribution_list[i]] for i in
                                                         range(len(distribution_list))])
-        self.box.pack_start(self.canvas2, True, True, 0)
+        frame2 = Gtk.Frame()
+        frame2.add(self.canvas2)
+        self.box.pack_start(frame2, True, True, 0)
 
         self.a31, self.a32, self.canvas3 = create_plot('', '', '', [])
-        self.box.pack_start(self.canvas3, True, True, 0)
+        frame3 = Gtk.Frame()
+        frame3.add(self.canvas3)
+        self.box.pack_start(frame3, True, True, 0)
 
-        self.a41, self.a42, self.canvas4 = create_plot('', '', 'Prediction', log_list)
-        self.box_2.pack_start(self.canvas4, True, True, 0)
+        self.a41, self.a42, self.canvas4 = create_plot('', '', 'Prediction of percentage of infected nodes', log_list)
+        frame4 = Gtk.Frame()
+        frame4.add(self.canvas4)
+        self.box_2.pack_start(frame4, True, True, 0)
 
-        self.a51, self.a52, self.canvas5 = create_plot('', '', 'Prediction', [])
-        self.box_2.pack_start(self.canvas5, True, True, 0)
+        self.a51, self.a52, self.canvas5 = create_plot('', '', 'Prediction of percentage of infected nodes', [])
+        frame5 = Gtk.Frame()
+        frame5.add(self.canvas5)
+        self.box_2.pack_start(frame5, True, True, 0)
 
         self.a61, self.a62, self.a63, self.a64, self.canvas6 = create_qq_plot()
-        self.box_2.pack_start(self.canvas6, True, True, 0)
+        frame5 = Gtk.Frame()
+        frame5.add(self.canvas6)
+        self.box_2.pack_start(frame5, True, True, 0)
 
         self.big_box.pack_start(self.box, True, True, 0)
         self.big_box.pack_start(self.box_2, True, True, 0)
@@ -340,7 +427,7 @@ def update_state():
     for i, g in enumerate(simulation_list):
         if i < len(graph_list):
             for e in g.edges():
-                edge_state_list[i][e] = [0.8, 0.8, 0.8, 1]
+                edge_state_list[i][e] = [0.2, 0.2, 0.2, 1]
         newState = state_list[i].copy()
         for v in g.vertices():
             if state_list[i][v] == I:
@@ -404,27 +491,27 @@ def update_state():
         update_data(win.a12, 'Time', 'Percentage(SIRS)', '',
                     frequency_list[1::2])
         update_data(win.a21, '', 'Frequency(SIS)',
-                    'Frequency Density (PDF) ',
+                    'Frequency Density (PDF) of percentage of infected nodes',
                     [[x / time for x in distribution_list[i]] for i in range(len(distribution_list)) if i % 2 == 0])
         update_data(win.a22, 'Percentage of infected nodes', 'Frequency(SIRS)',
                     '',
                     [[x / time for x in distribution_list[i]] for i in
                      range(len(distribution_list)) if i % 2 != 0])
-        for i in range(len(frequency_list)):
-            if i % 2 == 0:
-                win.a21.axvline((100 * np.array(frequency_list[i])).mean(), color=colors[int(i / 2)])
-                win.a21.axvline(np.median(100 * np.array(frequency_list[i])), color=colors[int(i / 2)])
-            else:
-                win.a22.axvline((100 * np.array(frequency_list[i])).mean(), color=colors[int((i - 1) / 2)])
-                win.a22.axvline(np.median(100 * np.array(frequency_list[i])), color=colors[int((i - 1) / 2)])
-        update_data(win.a41, 'time', 'Log-Return', 'Log-Return & Prediction of SIS', log_list[0::2])
-        update_data(win.a51, 'time', 'Log-Return', 'Log-Return & Prediction of SIRS', log_list[1::2])
+        # for i in range(len(frequency_list)):
+        #     if i % 2 == 0:
+        #         win.a21.axvline((100 * np.array(frequency_list[i])).mean(), color=colors[int(i / 2)])
+        #         win.a21.axvline(np.median(100 * np.array(frequency_list[i])), color=colors[int(i / 2)])
+        #     else:
+        #         win.a22.axvline((100 * np.array(frequency_list[i])).mean(), color=colors[int((i - 1) / 2)])
+        #         win.a22.axvline(np.median(100 * np.array(frequency_list[i])), color=colors[int((i - 1) / 2)])
+        update_data(win.a41, 'time', 'Log-Difference', 'Log-Difference & Prediction of SIS', log_list[0::2])
+        update_data(win.a51, 'time', 'Log-Difference', 'Log-Difference & Prediction of SIRS', log_list[1::2])
 
         if time > 2:
             win.a31.clear()
             for i, log in enumerate(log_list[0::2]):
                 sm.graphics.tsa.plot_acf((np.array(log) ** 2), win.a31, c=colors[i], markersize=4)
-            win.a31.set_title('ACF of log-return squared', {'fontweight': 'bold'})
+            win.a31.set_title('ACF of log-difference squared', {'fontweight': 'bold', 'color':'1'})
             win.a31.set_ylabel('(SIS)', {'fontweight': 'bold'})
             win.a31.grid()
 
@@ -437,7 +524,7 @@ def update_state():
             win.a61.clear()
             for i,d in enumerate(distribution_list[0::2]):
                 sm.qqplot(np.array(d), line='45', ax=win.a61, c=colors[i], markersize=4)
-            win.a61.set_title('PDF (SIS)', {'fontweight': 'bold'})
+            win.a61.set_title('PDF (SIS)', {'fontweight': 'bold', 'color':'1'})
             win.a61.set_xlabel('')
             win.a61.set_ylabel('')
             win.a61.grid()
@@ -445,7 +532,7 @@ def update_state():
             win.a62.clear()
             for i, d in enumerate(distribution_list[1::2]):
                 sm.qqplot(np.array(d), line='45', ax=win.a62, c=colors[i], markersize=4)
-            win.a62.set_title('PDF (SIRS)', {'fontweight': 'bold'})
+            win.a62.set_title('PDF (SIRS)', {'fontweight': 'bold', 'color':'1'})
             win.a62.set_xlabel('')
             win.a62.set_ylabel('')
             win.a62.grid()
@@ -453,7 +540,7 @@ def update_state():
             win.a63.clear()
             for i,l in enumerate(log_list[0::2]):
                 sm.qqplot(np.array(l), line='45', ax=win.a63, c=colors[i], markersize=4)
-            win.a63.set_title('log-return (SIS)', {'fontweight': 'bold'})
+            win.a63.set_title('log-difference (SIS)', {'fontweight': 'bold', 'color':'1'})
             win.a63.set_ylabel('')
             win.a63.set_xlabel('')
             win.a63.grid()
@@ -461,19 +548,18 @@ def update_state():
             win.a64.clear()
             for i, l in enumerate(log_list[1::2]):
                 sm.qqplot(np.array(l), line='45', ax=win.a64, c=colors[i], markersize=4)
-            win.a64.set_title('log-return (SIRS)', {'fontweight': 'bold'})
+            win.a64.set_title('log-difference (SIRS)', {'fontweight': 'bold', 'color':'1'})
             win.a64.set_ylabel('')
             win.a64.set_xlabel('')
             win.a64.grid()
 
             for i, log in enumerate(log_list):
-                if log[-1]:
-                    print('################'+str(time)+'######################')
-                    prediction = arch_model(100*(np.array(log[:-1]))).fit().forecast(horizon=5).mean.at[time-3,'h.1']
-                    error_list[i].append(abs((prediction/100 - log[-1]) / log[-1]))
+                print('################'+str(time)+'######################')
+                prediction = arch_model(100*(np.array(log[:-1]))).fit().forecast(horizon=5).mean.at[time-3,'h.1']
+                error_list[i].append(abs(prediction/100 - log[-1]))
 
-            update_data(win.a42, 'error', 'frequency', 'Prediction', error_list[0::2])
-            update_data(win.a52, 'error', 'frequency', 'Prediction', error_list[1::2])
+            update_data(win.a42, 'error', 'Frequency', 'Prediction of percentage of infected nodes', error_list[0::2])
+            update_data(win.a52, 'error', 'Frequency', 'Prediction of percentage of infected nodes', error_list[1::2])
 
         win.canvas1.draw()
         win.canvas2.draw()
@@ -493,42 +579,10 @@ def update_state():
             sys.exit(0)
         count += 1
 
-    # We need to return True so that the main loop will call this function more
-    # than once.
-
-    # if time == time_to_stop:
-    # if not simulation:
-    #     # m, n = max_cardinality_matching(g)
-    #     # vs.a = False
-    #     # for e in g.edges():
-    #     #     if m[e]:
-    #     #         vs[e.source()] = vs[e.target()] = True
-    #     m = min_spanning_tree(g)
-    # # newm = m.copy()
-    # # shuffle(elist)
-    # # g.set_edge_filter(m)
-    # # comp, hist = label_components(g)
-    # # rep = comp.a
-    # # for e in elist:
-    # #     if (find_rep(rep, g.vertex_index[e.source()]) != find_rep(rep, g.vertex_index[e.target()])):
-    # #         newm[e] = True
-    # #         rep[g.vertex_index[e.target()]] = g.vertex_index[e.source()]
-    # # g.set_edge_filter(newm)
-    # g.set_edge_filter(m)
-    #
-    # for v in g.vertices():
-    #     state[v] = S
-    # vt = list(g.vertices())
-    # sp = sample(vt, number_of_infected_at_beginning)
-    # for p in sp:
-    #     state[p] = I
-    # error.clear()
-    # distribution = [0] * (size + 1)
-    # num_infected = number_of_infected_at_beginning
-    # frequency = [num_infected / size]
-    # simulation += 1
-    # time = 0
     if time == time_to_stop:
+        win.a21.legend(['mean: '+str(int(mean))+', median: '+str(int(median)) for mean, median in zip(100 * np.array(frequency_list[0::2]).mean(axis=1), np.median(100 * np.array(frequency_list[0::2]),axis=1))])
+        win.a22.legend(['mean: '+str(int(mean))+', median: '+str(int(median)) for mean, median in zip(100 * np.array(frequency_list[1::2]).mean(axis=1), np.median(100 * np.array(frequency_list[1::2]),axis=1))])
+        win.canvas2.draw()
         return False
     return True
 
