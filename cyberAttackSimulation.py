@@ -17,6 +17,10 @@ from gi.repository import Gtk, Gdk, GdkPixbuf, GObject
 plt.switch_backend('cairo')
 
 # parameters:
+r = 0.1  # I->S probability
+s = 0.1  # R->S probability
+beta = 0.05  #infection rate
+number_of_infected_at_beginning = 5
 time_to_stop = 200
 graph_to_show = 'random'
 colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'Orange', 'Tomato', 'Navy', 'Plum', 'Purple']
@@ -30,71 +34,15 @@ def create_qq_plot():
     c = f.add_subplot(223)
     d = f.add_subplot(224)
 
-    a.set_facecolor('0')
-    a.spines['bottom'].set_color('1')
-    a.spines['top'].set_color('1')
-    a.spines['right'].set_color('1')
-    a.spines['left'].set_color('1')
-    a.tick_params(axis='x', colors='1')
-    a.tick_params(axis='y', colors='1')
-    a.yaxis.label.set_color('1')
-    a.xaxis.label.set_color('1')
-    a.title.set_color('1')
-
-    b.set_facecolor('0')
-    b.spines['bottom'].set_color('1')
-    b.spines['top'].set_color('1')
-    b.spines['right'].set_color('1')
-    b.spines['left'].set_color('1')
-    b.tick_params(axis='x', colors='1')
-    b.tick_params(axis='y', colors='1')
-    b.yaxis.label.set_color('1')
-    b.xaxis.label.set_color('1')
-    b.title.set_color('1')
-
-    c.set_facecolor('0')
-    c.spines['bottom'].set_color('1')
-    c.spines['top'].set_color('1')
-    c.spines['right'].set_color('1')
-    c.spines['left'].set_color('1')
-    c.tick_params(axis='x', colors='1')
-    c.tick_params(axis='y', colors='1')
-    c.yaxis.label.set_color('1')
-    c.xaxis.label.set_color('1')
-    c.title.set_color('1')
-
-    d.set_facecolor('0')
-    d.spines['bottom'].set_color('1')
-    d.spines['top'].set_color('1')
-    d.spines['right'].set_color('1')
-    d.spines['left'].set_color('1')
-    d.tick_params(axis='x', colors='1')
-    d.tick_params(axis='y', colors='1')
-    d.yaxis.label.set_color('1')
-    d.xaxis.label.set_color('1')
-    d.title.set_color('1')
-
     f.subplots_adjust(hspace=0.4)
-    f.suptitle('QQ plots of PDF & log-difference vs. normal distribution', fontweight='bold',fontdict={ 'color':'1'})
-    f.set_facecolor('0')
+    f.suptitle('QQ plots of PDF & log-difference vs. normal distribution', fontweight='bold')
 
     canvas = FigureCanvas(f)
     return a, b, c, d, canvas
 
 def create_plot(xlabel, ylabel, title, data):
     f = Figure()
-    f.set_facecolor('0')
     a = f.add_subplot(211)
-    a.set_facecolor('0')
-    a.spines['bottom'].set_color('1')
-    a.spines['top'].set_color('1')
-    a.spines['right'].set_color('1')
-    a.spines['left'].set_color('1')
-    a.tick_params(axis='x', colors='1')
-    a.tick_params(axis='y', colors='1')
-    a.yaxis.label.set_color('1')
-    a.xaxis.label.set_color('1')
-    a.title.set_color('1')
     num = 0
     for d in data[0::2]:
         a.plot(d, colors[num])
@@ -103,18 +51,7 @@ def create_plot(xlabel, ylabel, title, data):
             num = 0
     a.set_xlabel(xlabel, labelpad=0, fontdict={'fontweight': 'bold'})
     a.set_ylabel(ylabel, labelpad=0, fontdict={'fontweight': 'bold'})
-    # a.legend()
     b = f.add_subplot(212)
-    b.set_facecolor('0')
-    b.spines['bottom'].set_color('1')
-    b.spines['top'].set_color('1')
-    b.spines['right'].set_color('1')
-    b.spines['left'].set_color('1')
-    b.tick_params(axis='x', colors='1')
-    b.tick_params(axis='y', colors='1')
-    b.yaxis.label.set_color('1')
-    b.xaxis.label.set_color('1')
-    b.title.set_color('1')
     num = 0
     for d in data[1::2]:
         b.plot(d, colors[num])
@@ -178,7 +115,7 @@ def update_data(figure, xlabel, ylabel, title, data):
     num = 0
     for d in data:
         if title == 'Prediction of percentage of infected nodes':
-            figure.hist(d, cumulative=True, color=colors[num], histtype='bar', rwidth=0.5)
+            figure.hist(d, color=colors[num], histtype='bar', rwidth=0.5)
 
         else:
             figure.plot(d, colors[num])
@@ -187,21 +124,12 @@ def update_data(figure, xlabel, ylabel, title, data):
             num = 0
     figure.set_xlabel(xlabel, labelpad=0, fontdict={'fontweight': 'bold'})
     figure.set_ylabel(ylabel, labelpad=0, fontdict={'fontweight': 'bold'})
-    figure.set_title(title, {'fontweight': 'bold', 'color':'1'})
+    figure.set_title(title, {'fontweight': 'bold'})
     figure.grid()
-
-
-r = 0.1  # I->S probability
-s = 0.1  # R->S probability
-beta = 0.05
-incubation = 0.5  # E->I probability
-number_of_infected_at_beginning = 5
 
 graph_list = []
 g = create_graph(graph_to_show)
 graph_list.append(g)
-# graph_list.append(mstg)
-# graph_list.append(create_graph('star'))
 graph_list.append(g.copy())
 
 layout_list = []
@@ -246,7 +174,7 @@ cutg = g.copy()
 cut = g.new_vertex_property('bool')
 cut_array = cut.a
 for i in range(len(cut_array)):
-    cut_array[i] = randint(0, 2)
+    cut_array[i] = randint(0, 3)
 for e in g.edges():
     if cut[e.source()] != cut[e.target()]:
         if len(list(cutg.vertex(g.vertex_index[e.source()]).all_neighbors())) != 1 and len(
@@ -296,13 +224,6 @@ error_list = [[] for i in range(len(simulation_list))]
 
 time = 1
 
-# for i,graph in enumerate(simulation_list):
-#     graph_draw(graph,
-#                vprops={'fill_color': state_list[i]},
-#                eprops={'color':[.4,.4,.4,.4]}, output=str(i) + 'a.png',
-#                output_size=(400, 400))
-
-# If True, the frames will be dumped to disk as images.
 offscreen = sys.argv[1] == "offscreen" if len(sys.argv) > 1 else False
 max_count = 20
 if offscreen and not os.path.exists("../frames"):
@@ -319,7 +240,6 @@ class SimulationWindow(Gtk.Window):
         self.legend_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.graph_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(self.big_box)
-        self.modify_bg(0,Gdk.Color(1,1,1))
         self.graphs = []
 
         for i, g in enumerate(graph_list):
@@ -388,35 +308,6 @@ if not offscreen:
 else:
     pass
 
-
-# count = 0
-# win = Gtk.OffscreenWindow()
-# win.set_default_size(1920, 1080)
-# win.graph = GraphWidget(g, pos, edge_color=[0.6, 0.6, 0.6, 1],
-#                         vertex_fill_color=state,
-#                         vertex_halo=newly_infected,
-#                         vertex_halo_color=[0.8, 0, 0, 0.6])
-# win.add(win.graph)
-#
-# f1 = Figure(figsize=(5, 4))
-# a1 = f1.add_subplot(111)
-# a1.plot(frequency, '-b')
-# a1.set_xlabel('Time', labelpad=0)
-# a1.set_ylabel('Proportion', labelpad=0)
-# a1.set_title('Proportion of infected nodes vs. time')
-# canvas1 = FigureCanvas(f1)
-#
-# f2 = Figure(figsize=(5, 4))
-# a2 = f2.add_subplot(111)
-# p2, = a2.plot(distribution, '-b')
-# a2.set_xlabel('Number of infected nodes', labelpad=0)
-# a2.set_ylabel('Frequency', labelpad=0)
-# a2.set_title('Density of number of infected nodes')
-# canvas2 = FigureCanvas(f2)
-
-
-# This function will be called repeatedly by the GTK+ main loop, and we use it
-# to update the state according to the SIRS dynamics.
 def update_state():
     for n in newly_infected_list:
         n.a = False
@@ -427,7 +318,7 @@ def update_state():
     for i, g in enumerate(simulation_list):
         if i < len(graph_list):
             for e in g.edges():
-                edge_state_list[i][e] = [0.2, 0.2, 0.2, 1]
+                edge_state_list[i][e] = [0.8, 0.8, 0.8, 1]
         newState = state_list[i].copy()
         for v in g.vertices():
             if state_list[i][v] == I:
@@ -437,9 +328,6 @@ def update_state():
                     else:
                         newState[v] = R
                     num_infected_list[i] -= 1
-            elif state_list[i][v] == E:
-                if random() < incubation:
-                    newState[v] = I
             elif state_list[i][v] == S:
                 ns = list(v.all_neighbors())
                 p = 0
@@ -466,19 +354,10 @@ def update_state():
         log_list[i].append(math.log1p(frequency_list[i][-1]) - math.log1p(frequency_list[i][-2]))
         distribution_list[i][num_infected_list[i]] += 1
     time += 1
-    # Filter out the recovered vertices
-    # g.set_vertex_filter(removed, inverted=True)
 
-    # The following will force the re-drawing of the graph, and issue a
-    # re-drawing of the GTK window.
     if offscreen:
         pass
-    # win.graph.regenerate_surface()
-    # win.graph.queue_draw()
-    # a1.plot(frequency, colors[simulation % colors.__len__()])
-    # p2.set_ydata([x / time for x in distribution])
-    # canvas1.draw()
-    # canvas2.draw()
+
     else:
         for i, graph in enumerate(win.graphs):
             graph_draw(graph_list[i], pos=layout_list[i],
@@ -497,13 +376,7 @@ def update_state():
                     '',
                     [[x / time for x in distribution_list[i]] for i in
                      range(len(distribution_list)) if i % 2 != 0])
-        # for i in range(len(frequency_list)):
-        #     if i % 2 == 0:
-        #         win.a21.axvline((100 * np.array(frequency_list[i])).mean(), color=colors[int(i / 2)])
-        #         win.a21.axvline(np.median(100 * np.array(frequency_list[i])), color=colors[int(i / 2)])
-        #     else:
-        #         win.a22.axvline((100 * np.array(frequency_list[i])).mean(), color=colors[int((i - 1) / 2)])
-        #         win.a22.axvline(np.median(100 * np.array(frequency_list[i])), color=colors[int((i - 1) / 2)])
+
         update_data(win.a41, 'time', 'Log-Difference', 'Log-Difference & Prediction of SIS', log_list[0::2])
         update_data(win.a51, 'time', 'Log-Difference', 'Log-Difference & Prediction of SIRS', log_list[1::2])
 
@@ -511,7 +384,7 @@ def update_state():
             win.a31.clear()
             for i, log in enumerate(log_list[0::2]):
                 sm.graphics.tsa.plot_acf((np.array(log) ** 2), win.a31, c=colors[i], markersize=4)
-            win.a31.set_title('ACF of log-difference squared', {'fontweight': 'bold', 'color':'1'})
+            win.a31.set_title('ACF of log-difference squared', {'fontweight': 'bold'})
             win.a31.set_ylabel('(SIS)', {'fontweight': 'bold'})
             win.a31.grid()
 
@@ -524,7 +397,7 @@ def update_state():
             win.a61.clear()
             for i,d in enumerate(distribution_list[0::2]):
                 sm.qqplot(np.array(d), line='45', ax=win.a61, c=colors[i], markersize=4)
-            win.a61.set_title('PDF (SIS)', {'fontweight': 'bold', 'color':'1'})
+            win.a61.set_title('PDF (SIS)', {'fontweight': 'bold'})
             win.a61.set_xlabel('')
             win.a61.set_ylabel('')
             win.a61.grid()
@@ -532,7 +405,7 @@ def update_state():
             win.a62.clear()
             for i, d in enumerate(distribution_list[1::2]):
                 sm.qqplot(np.array(d), line='45', ax=win.a62, c=colors[i], markersize=4)
-            win.a62.set_title('PDF (SIRS)', {'fontweight': 'bold', 'color':'1'})
+            win.a62.set_title('PDF (SIRS)', {'fontweight': 'bold'})
             win.a62.set_xlabel('')
             win.a62.set_ylabel('')
             win.a62.grid()
@@ -540,7 +413,7 @@ def update_state():
             win.a63.clear()
             for i,l in enumerate(log_list[0::2]):
                 sm.qqplot(np.array(l), line='45', ax=win.a63, c=colors[i], markersize=4)
-            win.a63.set_title('log-difference (SIS)', {'fontweight': 'bold', 'color':'1'})
+            win.a63.set_title('log-difference (SIS)', {'fontweight': 'bold'})
             win.a63.set_ylabel('')
             win.a63.set_xlabel('')
             win.a63.grid()
@@ -548,7 +421,7 @@ def update_state():
             win.a64.clear()
             for i, l in enumerate(log_list[1::2]):
                 sm.qqplot(np.array(l), line='45', ax=win.a64, c=colors[i], markersize=4)
-            win.a64.set_title('log-difference (SIRS)', {'fontweight': 'bold', 'color':'1'})
+            win.a64.set_title('log-difference (SIRS)', {'fontweight': 'bold'})
             win.a64.set_ylabel('')
             win.a64.set_xlabel('')
             win.a64.grid()
@@ -573,8 +446,6 @@ def update_state():
         global count
         pixbuf = win.get_pixbuf()
         pixbuf.savev(r'./frames/%06dgraph.png' % count, 'png', [], [])
-        # canvas1.print_png(r'./frames/%06dplot1.png' % count)
-        # canvas2.print_png(r'./frames/%06dplot2.png' % count)
         if count > max_count:
             sys.exit(0)
         count += 1
